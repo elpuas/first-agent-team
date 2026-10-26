@@ -1,0 +1,59 @@
+- generic [active] [ref=f8e1]:
+  - banner [ref=f8e2]:
+    - link "Café Roble, inicio" [ref=f8e3] [cursor=pointer]:
+      - /url: "#inicio"
+      - generic [ref=f8e5]: Café Roble
+    - navigation "Navegación principal" [ref=f8e6]:
+      - link "El menú" [ref=f8e7] [cursor=pointer]:
+        - /url: "#menu"
+      - link "Visítanos" [ref=f8e8] [cursor=pointer]:
+        - /url: "#ubicacion"
+  - main [ref=f8e9]:
+    - region [ref=f8e10]:
+      - generic [ref=f8e11]:
+        - paragraph [ref=f8e12]: CAFÉ DE BARRIO · SAN JOSÉ
+        - heading "Buen café. Una pausa para ti." [level=1] [ref=f8e13]
+        - paragraph [ref=f8e14]: Café de Costa Rica, repostería fresca y un espacio para disfrutar sin prisa.
+        - link "Cómo llegar" [ref=f8e15] [cursor=pointer]:
+          - /url: "#ubicacion"
+          - text: Cómo llegar
+          - generic [aria-hidden] [ref=f8e16]: ↗
+    - region [ref=f8e19]:
+      - heading "Algo rico para acompañar tu día" [level=2] [ref=f8e20]
+      - generic [ref=f8e21]:
+        - article [ref=f8e22]:
+          - generic [ref=f8e24]:
+            - heading "Café filtrado" [level=3] [ref=f8e25]
+            - paragraph [ref=f8e26]: ₡1.800
+          - paragraph [ref=f8e27]: Café de Costa Rica, preparado al momento.
+        - article [ref=f8e28]:
+          - generic [ref=f8e30]:
+            - heading "Cappuccino" [level=3] [ref=f8e31]
+            - paragraph [ref=f8e32]: ₡2.200
+          - paragraph [ref=f8e33]: Espresso con leche y espuma suave.
+        - article [ref=f8e34]:
+          - generic [ref=f8e36]:
+            - heading "Croissant de mantequilla" [level=3] [ref=f8e37]
+            - paragraph [ref=f8e38]: ₡1.600
+          - paragraph [ref=f8e39]: Horneado cada mañana.
+    - region [ref=f8e40]:
+      - generic [ref=f8e43]:
+        - heading "Tu próxima pausa queda cerca" [level=2] [ref=f8e44]
+        - paragraph [ref=f8e45]: Somos una cafetería de barrio con café de origen local, repostería y opciones sencillas para desayunar. Un lugar cómodo para tomar un respiro o conversar con alguien.
+    - region [ref=f8e47]:
+      - heading "Ven a visitarnos" [level=2] [ref=f8e48]
+      - generic [ref=f8e49]:
+        - generic [ref=f8e50]: 200 metros al norte del Parque Central, San José, Costa Rica.
+        - generic [ref=f8e53]:
+          - generic [ref=f8e54]:
+            - term [ref=f8e55]: "Lunes a viernes:"
+            - definition [ref=f8e56]: 7:00 a. m.–6:00 p. m.
+          - generic [ref=f8e57]:
+            - term [ref=f8e58]: "Sábado:"
+            - definition [ref=f8e59]: 8:00 a. m.–4:00 p. m.
+          - generic [ref=f8e60]:
+            - term [ref=f8e61]: "Domingo:"
+            - definition [ref=f8e62]: cerrado.
+  - contentinfo [ref=f8e63]:
+    - generic [ref=f8e64]: Café Roble
+    - paragraph [ref=f8e67]: Cafetería ficticia. Sitio creado como ejercicio educativo.

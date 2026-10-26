@@ -229,3 +229,62 @@ No project configuration change was required. Official Codex App Server document
 ### Next test prompt
 
 > Read `AGENTS.md` and `docs/team-spec.md`. Run only the `review_agent` Playwright MCP connection check. Ask it to call `browser_tabs` with `{"action":"list"}` without navigating anywhere or editing files. Validate its JSON handoff and report separately: agent invocation, Playwright tool discovery, and Playwright tool execution. Stop after this check.
+
+## 2026-10-26 — First complete assignment run: Café Roble
+
+### Initialization
+
+- Run ID: `2026-10-26-cafe-roble-001`.
+- Created the documented run structure under `runs/2026-10-26-cafe-roble-001/` with an explicit `output/` boundary and two-correction-round limit.
+- Supplied Figma design: file `6jFDJfGeIhFgfAVYmqUUHT`, node `1:7`.
+- Reconciled the outdated brief restrictions before implementation: Figma controls presentation, including approved photography and typography; the brief controls business facts, exact copy, behavior, accessibility, and technical delivery. Any delivered assets or fonts must remain local, so this does not authorize external runtime dependencies.
+- No unresolved material conflict was identified during initialization. Content, design inspection, implementation, preview, and review remain pending at this point.
+
+### Content stage
+
+- Invoked the configured `content_agent` as a separate delegated execution.
+- The agent returned the documented JSON fields and organized document metadata, header, hero, menu, about, location, footer, and global content rules.
+- The handoff preserved the supplied copy, prices, address, hours, anchors, and fictional-business notice.
+- `missing_information`, `conflicts`, and `assumptions_requiring_confirmation` were empty, so the stage completed without inventing facts.
+- Persisted the validated handoff as `runs/2026-10-26-cafe-roble-001/content.json`.
+
+### Development stage
+
+- Invoked the configured `development_agent` as a separate delegated execution with only the validated content, assignment requirements, allowed output directory, and supplied design node.
+- Figma MCP inspection passed. The agent reported `mcp__figma__create_session` followed by screenshot-enabled `mcp__figma__get_design_context` for file `6jFDJfGeIhFgfAVYmqUUHT`, node `1:7`, with `skillNames=figma-design-to-code`. Context was high fidelity and not sparse.
+- Implemented `index.html`, `styles.css`, five local photographs, and three local SVG marks only under the run output directory.
+- Figma supplied Georgia and SF Pro references but no font files. The implementation uses local system Georgia and Arial/Helvetica fallbacks, preserving the presentation without an external font dependency.
+- Business-copy precedence intentionally omitted design-only copy: the extra “Nuestro espacio” navigation item, promotional strip, section eyebrow labels, and “Nos vemos en Roble” heading. This is a documented content difference, not an unresolved presentation conflict.
+- Orchestrator validation confirmed every claimed file exists and is non-empty, the assets are valid image/SVG data, there is exactly one H1, and no HTTP URL, script, or CSS import appears in the HTML/CSS.
+- Browser viewport, visual comparison, overflow, interaction, and 200% zoom remained unverified after development and were reserved for `review_agent`.
+
+### Preview stage
+
+- The first localhost bind attempt was denied by the filesystem/network sandbox with `PermissionError: [Errno 1] Operation not permitted`.
+- After the required approval path, the orchestrator started a localhost-only static server from the run output directory at `http://127.0.0.1:4173/`.
+- An approved read-only HEAD request returned HTTP 200, `Content-Type: text/html`, and the expected 4,426-byte document length.
+
+### Initial review
+
+- Invoked the configured `review_agent` as a separate delegated execution with the local preview URL, validated handoffs, all 20 acceptance IDs, and the Figma node.
+- Playwright MCP loaded the page, checked desktop and mobile layouts, keyboard navigation, anchors, zoom-equivalent reflow, focus, contrast, assets, console, requests, semantics, and retained screenshots.
+- Read-only Figma comparison used a screenshot and high-fidelity context for node `1:7`.
+- Handoff validation passed: exactly 20 criteria were returned. Nineteen passed; `figma_visual_match` failed.
+- Concrete major finding: all three menu image frames rendered near-square at about `1.007:1`, while Figma uses landscape slots around `352:288.516` (`1.22:1`). The difference changes crops and makes the menu section taller.
+- Confirmed the two cited screenshot files exist and visually inspected them. Recommendation: `needs_correction`.
+
+### Correction round 1
+
+- Routed only the validated menu-image ratio finding to the existing `development_agent`; correction count became 1 of 2.
+- The agent changed only `output/styles.css`: menu images were removed from the shared `height: 100%` photograph rule and received `width: 100%`, `height: auto`, `aspect-ratio: 352 / 288.516`, and `object-fit: cover`.
+- Orchestrator inspection confirmed the effective selector, unchanged output file set, no remote dependencies, and HTTP 200 for the corrected 6,864-byte stylesheet.
+- Browser verification remained pending for the review recheck.
+
+### Review recheck and stop condition
+
+- The same `review_agent` performed a full 20-criterion Playwright regression check and saved fresh desktop/mobile screenshots.
+- The corrected menu ratio passed: about `1.22:1` at both 1440 px and 375 px, matching the established Figma slot geometry.
+- Nineteen criteria passed. `no_overflow_or_clipping` failed because the desktop location grid produced a 1,475 px scroll width in a 1,440 px viewport; `.location__hours` extended 35.17 px beyond the viewport.
+- The suggested correction is to make the second location column shrinkable, e.g. `grid-template-columns: 41% minmax(0, 1fr)`, and add `min-width: 0` to `.location__hours`, then verify `scrollWidth === 1440`.
+- The run was created at `16:43:35Z`; validated recheck evidence arrived at `16:59:53Z`. The documented 15-minute overall assignment limit had elapsed, so the orchestrator did not dispatch correction round 2.
+- Final workflow status: `needs_attention`, not `ready_for_human_review`. Human acceptance remains pending.
