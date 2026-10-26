@@ -1,248 +1,262 @@
-# Agent team specification
+# Codex agent team specification
 
 ## Objective
 
-Build a reusable team that receives a landing-page brief and a Figma design reference, implements the page, and verifies the result.
+Configure a reusable Codex team that can receive a future landing-page assignment, prepare its content, implement it, and review it. The team configuration is independent of Café Roble or any other business-specific brief.
 
-The first assignment is Café Roble. Business names, copy, colors, and sections must come from the assignment inputs rather than being hardcoded into the team.
+This is an explicitly orchestrated workflow. The primary Codex thread owns routing, state, limits, and the final handoff. Three project-scoped custom agents perform bounded stages.
 
-This is an explicitly orchestrated workflow. It does not claim to be a dynamically self-organizing team.
+## Supported implementation
 
-## Architecture
+Codex supports project-scoped custom agents as standalone TOML files in `.codex/agents/`. This project registers them in `.codex/config.toml`. `AGENTS.md` provides durable policy for the primary thread but is not itself an executable agent definition.
 
-Use a Node.js coordinator with distinct agent executions for:
-1. Content preparation.
-2. Development.
-3. Review.
+Configured roles:
 
-One model may serve all roles. Each execution receives only the instructions, context, and tools required for its responsibility.
+| Role | Executable configuration | Invocation |
+| --- | --- | --- |
+| Orchestrator | Primary Codex thread governed by `AGENTS.md` and this specification | User starts an assignment in the project; the primary thread delegates named stages |
+| Content | `.codex/agents/content-agent.toml` | Orchestrator spawns `content_agent` |
+| Development | `.codex/agents/development-agent.toml` | Orchestrator spawns `development_agent` |
+| Review | `.codex/agents/review-agent.toml` | Orchestrator spawns `review_agent` |
 
-Start with plain JavaScript and a minimal SDK setup. Confirm the model, SDK, and MCP integration approach during the initial technical investigation.
+The existing Node.js files are retained but are not the active orchestrator implementation in this stage.
 
-## Inputs
+## Runtime inheritance and limitations
 
-Each run receives:
-- An assignment brief.
-- A Figma reference URL and target page or node, where available.
-- A local output directory.
-- Model and MCP configuration.
-- Explicit execution limits.
+Custom agents inherit the primary session's permission mode, sandbox, model provider, and MCP servers. Agent TOML can disable supported capabilities such as shell, apps, plugins, memories, or permission requests; it cannot establish a separate sandbox or override the parent's MCP server configuration.
 
-Validate required inputs and tool connectivity before starting generation.
+Consequences:
 
-If the design reference or another required input is missing or inaccessible, stop with an actionable explanation. Do not silently substitute a different design.
+- Tool separation is partly enforceable: content has shell/apps/plugins disabled, and review has shell disabled.
+- Per-server allowlists are not available in custom-agent files. Development and review inherit every parent MCP server that is enabled, so their instructions provide the narrower role policy.
+- Figma access depends on the parent Codex session having an authenticated Figma plugin or MCP connection. This project does not store Figma credentials.
+- Playwright MCP is configured project-wide through `.codex/config.toml` and becomes available only in a new trusted Codex session that successfully starts the server.
+- Agent discovery and configuration loading occur at session start. The current session can write and validate the files but does not prove that a future session loaded the new roles.
+- Instruction-required JSON is a contract, not a machine-enforced schema. The orchestrator must validate each handoff before continuing.
 
-## Responsibilities
+## Orchestrator
 
-### Orchestrator
+### Inputs
 
-The orchestrator is application logic responsible for:
-- Loading inputs and acceptance criteria.
-- Checking prerequisites.
-- Invoking agents in the correct order.
-- Validating structured outputs.
-- Persisting state and artifacts.
-- Routing review findings to the development agent.
-- Enforcing execution limits.
-- Returning a truthful final status.
+- Assignment brief and acceptance criteria.
+- Explicit assignment output directory.
+- Optional design reference when required by that assignment.
+- Parent-session model, permissions, and connected tools.
+- Execution limits.
 
-It must not accept an agent's success statement as sufficient evidence of completion.
+### Responsibilities
 
-### Content agent
+- Validate run inputs without inventing missing data.
+- Create and update run state after each stage.
+- Spawn the named custom agents in order.
+- Give each agent only the context required for its role.
+- Validate JSON shape, statuses, paths, and claimed evidence.
+- Ensure only development edits assignment implementation files.
+- Start and stop the controlled local preview.
+- Route review findings back to development.
+- Enforce at most two correction rounds.
+- Produce the truthful final status and handoff.
 
-Inputs:
-- Assignment brief.
-- Content requirements and supplied business facts.
+### Tools and permissions
 
-Responsibilities:
+- Uses the primary session's filesystem and delegation tools.
+- May start a local preview within the active sandbox.
+- Does not grant permissions that the parent session lacks.
+- Does not pass secrets to agents or persist them in run artifacts.
+
+### Completion conditions
+
+- All required stages have valid handoffs, or an exact blocker is recorded.
+- Every final claim is supported by state or evidence.
+- No more than two correction rounds were attempted.
+- Human review remains explicitly pending until Alfredo accepts the result.
+
+## Content agent
+
+### Inputs
+
+- Assignment brief and acceptance criteria copied into the delegated task.
+- Supplied facts and content rules.
+
+### Responsibilities
+
 - Organize copy by section.
-- Preserve supplied facts, names, prices, and hours.
-- Identify missing or contradictory information.
-- Draft new copy only when the brief permits it.
+- Preserve supplied facts and required wording.
+- Identify missing, conflicting, or ambiguous information.
+- Draft only where the brief explicitly permits drafting.
 
-Outputs:
-- Structured section content.
-- Missing information or conflicts.
-- Any assumptions requiring confirmation.
+### Tools and permissions
 
-Tools:
-- No MCP tools required initially.
+- Shell, apps, plugins, memories, and permission requests are disabled.
+- No file edits or further delegation.
 
-### Development agent
+### Output
 
-Inputs:
-- Assignment brief and acceptance criteria.
-- Prepared content.
-- Figma reference.
-- Existing implementation and review findings during corrections.
+```json
+{
+  "status": "complete | blocked",
+  "sections": [{ "id": "string", "content": {} }],
+  "missing_information": [],
+  "conflicts": [],
+  "assumptions_requiring_confirmation": []
+}
+```
 
-Responsibilities:
-- Inspect the design through Figma MCP.
-- Implement the page using semantic HTML and CSS.
-- Preserve editable text and supplied content.
-- Address review findings within the allowed correction rounds.
+### Completion conditions
 
-Outputs:
-- Proposed local files and their contents.
-- Implementation notes.
-- Unresolved requirements or design limitations.
+- Every supplied content requirement is organized or reported missing.
+- No unsupported claim is introduced.
+- Essential missing or contradictory information produces `blocked`.
 
-Tools:
-- Read-only Figma MCP tools.
-- Controlled access to assignment output files.
+## Development agent
 
-The orchestrator must validate proposed file paths before writing. Do not allow writes outside the run's output directory.
+### Inputs
 
-### Review agent
+- Brief and acceptance criteria.
+- Validated content handoff.
+- Explicit output directory.
+- Design reference when required.
+- Review findings during a correction round.
 
-Inputs:
-- Assignment brief and acceptance criteria.
-- Prepared content.
-- Figma reference and relevant design context.
+### Responsibilities
+
+- Confirm required inputs before editing.
+- Inspect supplied designs through inherited Figma tools when required and available.
+- Implement only in the allowed assignment output directory.
+- Preserve supplied content and unrelated files.
+- Address only routed findings during corrections.
+
+### Tools and permissions
+
+- Shell, apps, and plugins are enabled.
+- Figma use is read-only by project policy.
+- Permission requests and memories are disabled.
+- No commit, push, deployment, publishing, or further delegation.
+
+### Output
+
+```json
+{
+  "status": "complete | blocked | failed",
+  "files_changed": ["relative/path"],
+  "checks_performed": [
+    { "check": "string", "result": "passed | failed | not_verified", "evidence": "string" }
+  ],
+  "implementation_notes": [],
+  "unresolved_requirements": []
+}
+```
+
+### Completion conditions
+
+- Requested files exist only inside the allowed output directory.
+- Claimed checks have evidence.
+- Missing Figma access or context is reported as `blocked`, not mocked.
+
+## Review agent
+
+### Inputs
+
+- Brief and acceptance criteria.
+- Validated content and development handoffs.
 - Local preview URL and implementation artifacts.
+- Design reference when visual comparison requires it.
 
-Responsibilities:
-- Inspect the running page through Playwright MCP.
-- Compare the result with the brief and design.
-- Check desktop and mobile layouts, navigation, keyboard behavior, and other specified criteria.
-- Capture screenshots.
-- Report concrete findings and checks it could not complete.
+### Responsibilities
 
-Outputs:
-- A result for each acceptance criterion: pass, fail, or not verified.
-- Findings with criterion, evidence, severity, and suggested correction.
-- Paths to browser evidence.
-- A recommendation: ready, needs correction, or blocked.
+- Verify every acceptance criterion.
+- Use inherited Playwright MCP for browser checks when required and available.
+- Use inherited read-only Figma tools for design comparison when required and available.
+- Capture evidence and distinguish pass, fail, and not verified.
+- Recommend only concrete, in-scope corrections.
 
-Tools:
-- Playwright MCP for browser inspection.
-- Read-only Figma MCP access for visual comparison when needed.
-- Read access to assignment artifacts.
+### Tools and permissions
 
-Review tools must not modify the implementation.
+- Apps and plugins are enabled; shell is disabled.
+- Browser activity is limited to the supplied local preview and assignment-required resources.
+- No implementation edits, external publishing, or further delegation.
 
-## MCP prerequisites
+### Output
 
-Document how the tutorial agents connect to each MCP server at runtime.
+```json
+{
+  "status": "complete | blocked | failed",
+  "criteria": [
+    { "id": "string", "result": "pass | fail | not_verified", "evidence": ["string"] }
+  ],
+  "findings": [
+    {
+      "criterion_id": "string",
+      "severity": "critical | major | minor",
+      "description": "string",
+      "suggested_correction": "string"
+    }
+  ],
+  "evidence_paths": ["relative/path"],
+  "recommendation": "ready | needs_correction | blocked"
+}
+```
 
-For each connection, record:
-- Required installation and authentication.
-- Supported transport.
-- Available and permitted tools.
-- Connection verification steps.
-- Relevant limitations.
+### Completion conditions
 
-Figma Make compatibility must be tested with the actual reference. Do not assume it exposes the same design information as a Figma Design file.
+- Every criterion has exactly one result.
+- Failures and unverified checks identify evidence or the exact limitation.
+- `ready` is used only when every required criterion passes with evidence.
 
-If another reference format or file type is required, record that finding and obtain the appropriate input before continuing.
+## Handoff sequence
 
-## Structured handoffs
+```text
+Primary orchestrator
+  -> content_agent
+  -> validate content JSON
+  -> development_agent
+  -> validate files and development JSON
+  -> start controlled local preview
+  -> review_agent
+  -> validate review JSON
+  -> if needed: development_agent correction -> review_agent recheck
+  -> repeat correction/recheck at most once more
+  -> final handoff for human review
+```
 
-Define and validate schemas for agent outputs.
+Dependent stages are sequential. The orchestrator may reuse a completed agent thread for a correction or spawn the same configured role again with the prior handoff and exact findings. Correction round count increments only when development is asked to change the implementation after a review.
 
-At minimum:
-- Content: sections, missing information, conflicts.
-- Development: files, notes, unresolved requirements.
-- Review: criterion results, findings, evidence, recommendation.
+## Limits
 
-Malformed output must not be passed directly to the next stage.
-
-Keep outputs inspectable as JSON alongside generated files.
-
-## Workflow
-
-1. Validate configuration, inputs, and MCP connectivity.
-2. Prepare content.
-3. Stop if essential content is missing or contradictory.
-4. Inspect the design and implement the page.
-5. Serve the output through a controlled local preview.
-6. Review the page in the browser.
-7. Route actionable findings to development.
-8. Repeat review after a correction.
-9. Return the final status with evidence and remaining limitations.
-
-Start sequentially because each stage depends on previous outputs. Introduce parallel work only when a concrete independent task justifies it.
-
-## Limits and failure handling
-
-Initial defaults:
 - One initial implementation.
 - At most two correction rounds.
-- At most one retry per transient model or tool failure.
-- A 120-second timeout per model request.
-- A 60-second timeout per MCP tool call.
-- A 15-minute overall run limit.
-- Explicit finite output limits for every model request.
-
-Make these limits configurable and document any changes made during the experiment.
-
-Do not retry authentication failures, missing inputs, or unsupported capabilities as though they were transient.
-
-After a timeout, cancel pending work where supported. Do not start a duplicate browser or file operation unless the previous operation's outcome is known.
-
-If budget enforcement is implemented, distinguish estimated cost from billed cost and document how the limit is calculated.
-
-## State and artifacts
-
-Store each run under a unique directory:
-
-runs/<run-id>/
-- brief.md
-- metadata.json
-- state.json
-- content.json
-- design-context/
-- output/
-- reviews/
-- screenshots/
-- events.jsonl
-
-Persist status after each stage.
-
-Record:
-- Model and relevant configuration.
-- Stage start and end times.
-- Tool actions and outcomes, with sensitive data removed.
-- Token usage when provided.
-- Correction count.
-- Final status and outstanding findings.
-
-Automatic resume is optional. Never claim that an interrupted run is safely resumable unless that behavior is implemented and tested.
-
-## Verification
-
-Use concrete checks alongside agent judgment:
-- Validate structured outputs and file paths.
-- Confirm expected files exist.
-- Verify supplied facts against generated copy.
-- Check the local page in a browser.
-- Inspect screenshots against the design reference.
-- Record evidence for each acceptance criterion.
-
-Do not infer full accessibility compliance from automated checks or an agent review.
-
-Human review remains part of the tutorial: Alfredo reviews the final page and evidence before the result is described as accepted.
-
-## Final statuses
-
-- `ready_for_human_review`: all required checks passed, with evidence.
-- `needs_attention`: criteria remain failed or unverified after the correction limit.
-- `blocked`: a required input, capability, or connection prevented completion.
-- `failed`: an unrecoverable execution error prevented completion.
+- At most one retry for a transient model or tool failure.
+- No retries for authentication failure, missing inputs, or unsupported capabilities.
+- 120 seconds per model turn unless the parent environment imposes a lower limit.
+- 60 seconds per MCP tool call.
+- 15 minutes overall per assignment run unless explicitly changed before execution.
+- Three concurrently open subagent threads maximum, excluding the primary thread.
 
 Reaching a limit is not success.
 
-## Evidence for the article
+## State and evidence
 
-Retain:
-- Prompts and assignment inputs.
-- Structured agent outputs.
-- Initial and corrected implementations.
-- Browser screenshots and review findings.
-- Actual errors and fixes.
-- Elapsed time and available usage data.
-- Integration limitations and reproducible setup instructions.
+Store future assignment runs under `runs/<run-id>/`:
 
-Report cost only when supported by usage records and an identified pricing source.
+```text
+brief.md
+metadata.json
+state.json
+content.json
+design-context/
+output/
+reviews/
+screenshots/
+events.jsonl
+```
 
-Never invent a failure for the article. A successful first run is also a valid result.
+Record model/configuration identifiers, stage times, agent status, tool outcomes, correction count, files, and evidence without secrets. Do not claim automatic resume unless it is implemented and tested.
+
+## Final statuses
+
+- `ready_for_human_review`: all required checks passed with evidence.
+- `needs_attention`: failed or unverified criteria remain after the correction limit.
+- `blocked`: a required input, capability, or connection prevented completion.
+- `failed`: an unrecoverable execution error prevented completion.
+
+Human acceptance is outside the agent team's authority.

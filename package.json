@@ -1,0 +1,20 @@
+{
+  "name": "first-agent-team",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Educational Node.js orchestrator for distinct content, development, and review agents.",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "check:connections": "node --env-file-if-exists=.env scripts/check-connections.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "openai": "7.43.0"
+  },
+  "devDependencies": {
+    "@playwright/mcp": "0.0.83"
+  }
+}

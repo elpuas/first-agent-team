@@ -1,0 +1,30 @@
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 3
+interrupt_message = true
+
+[agents.content_agent]
+description = "Organizes supplied assignment copy and reports missing or conflicting information without inventing facts."
+config_file = "agents/content-agent.toml"
+
+[agents.development_agent]
+description = "Implements an approved assignment in its allowed output directory and inspects supplied designs through Figma when required and available."
+config_file = "agents/development-agent.toml"
+
+[agents.review_agent]
+description = "Reviews an implementation against supplied acceptance criteria with browser evidence and never edits the implementation."
+config_file = "agents/review-agent.toml"
+
+[mcp_servers.playwright]
+command = "npx"
+args = [
+  "--no-install",
+  "@playwright/mcp@0.0.83",
+  "--headless",
+  "--isolated",
+  "--allowed-origins",
+  "http://127.0.0.1:*;http://localhost:*",
+]
+startup_timeout_sec = 20
+tool_timeout_sec = 60
+enabled = true
